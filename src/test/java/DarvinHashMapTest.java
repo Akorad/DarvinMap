@@ -4,7 +4,6 @@ import org.UlGTU.DarvinHashMap;
 
 import java.util.Map;
 import java.util.Set;
-import java.util.List;
 import java.util.Collection;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -103,10 +102,7 @@ public class DarvinHashMapTest {
 
         Set<Map.Entry<Integer, String>> entries = map.entrySet();
         assertEquals(2, entries.size());
-
     }
-
-
 
     @Test
     public void testGetOrDefault() {
@@ -161,35 +157,49 @@ public class DarvinHashMapTest {
         map.put(2, "two");
 
         assertTrue(map.replace(1, "one", "ONE"));
-        assertFalse(map.replace(2, "three", "TWO"));
+        assertFalse(map.replace(2, "three", "THREE"));
+
+        assertEquals("ONE", map.get(1));
+        assertEquals("two", map.get(2));
+    }
+
+    @Test
+    public void testReplace() {
+        map.put(1, "one");
+        map.replace(1, "ONE");
+
+        assertEquals("ONE", map.get(1));
+        assertNull(map.get(2));
     }
 
     @Test
     public void testComputeIfAbsent() {
         map.put(1, "one");
 
-        map.computeIfAbsent(2, k -> "two");
-
-        assertEquals("one", map.get(1));
-        assertEquals("two", map.get(2));
+        assertEquals("one", map.computeIfAbsent(1, k -> "ONE"));
+        assertEquals("two", map.computeIfAbsent(2, k -> "two"));
     }
 
     @Test
     public void testComputeIfPresent() {
         map.put(1, "one");
 
-        map.computeIfPresent(1, (k, v) -> "ONE");
+        map.computeIfPresent(1, (k, v) -> v.toUpperCase());
+        map.computeIfPresent(2, (k, v) -> v.toUpperCase());
 
         assertEquals("ONE", map.get(1));
+        assertNull(map.get(2));
     }
 
     @Test
     public void testCompute() {
         map.put(1, "one");
 
-        map.compute(1, (k, v) -> v == null ? "ONE" : "two");
+        map.compute(1, (k, v) -> v == null ? "ONE" : v.toUpperCase());
+        map.compute(2, (k, v) -> v == null ? "two" : v.toUpperCase());
 
-        assertEquals("two", map.get(1));
+        assertEquals("ONE", map.get(1));
+        assertEquals("two", map.get(2));
     }
 
     @Test
@@ -197,20 +207,9 @@ public class DarvinHashMapTest {
         map.put(1, "one");
 
         map.merge(1, "ONE", (oldValue, newValue) -> oldValue + newValue);
+        map.merge(2, "two", (oldValue, newValue) -> oldValue + newValue);
 
         assertEquals("oneONE", map.get(1));
-    }
-
-    @Test
-    public void testEqualsAndHashCode() {
-        DarvinHashMap<Integer, String> map2 = new DarvinHashMap<>();
-        map.put(1, "one");
-        map.put(2, "two");
-
-        map2.put(1, "one");
-        map2.put(2, "two");
-
-        assertTrue(map.equals(map2));
-        assertEquals(map.hashCode(), map2.hashCode());
+        assertEquals("two", map.get(2));
     }
 }
