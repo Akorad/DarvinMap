@@ -58,7 +58,7 @@ public class DarvinHashMap<K, V> implements Map<K, V> {
         try {
             LinkedList<Entry<K, V>> bucket = buckets[bucketIndex];
             for (Entry<K, V> entry : bucket) {
-                if (entry.key.equals(key)) {
+                if (entry.getKey().equals(key)) {
                     return true;
                 }
             }
@@ -77,7 +77,7 @@ public class DarvinHashMap<K, V> implements Map<K, V> {
                 readLock.lock();
                 try {
                     for (Entry<K, V> entry : buckets[i]) {
-                        if (entry.value.equals(value)) {
+                        if (entry.getValue().equals(value)) {
                             return true;
                         }
                     }
@@ -99,8 +99,8 @@ public class DarvinHashMap<K, V> implements Map<K, V> {
         try {
             LinkedList<Entry<K, V>> bucket = buckets[bucketIndex];
             for (Entry<K, V> entry : bucket) {
-                if (entry.key.equals(key)) {
-                    return entry.value;
+                if (entry.getKey().equals(key)) {
+                    return entry.getValue();
                 }
             }
             return null;
@@ -117,9 +117,9 @@ public class DarvinHashMap<K, V> implements Map<K, V> {
         try {
             LinkedList<Entry<K, V>> bucket = buckets[bucketIndex];
             for (Entry<K, V> entry : bucket) {
-                if (entry.key.equals(key)) {
-                    V oldValue = entry.value;
-                    entry.value = value;
+                if (entry.getKey().equals(key)) {
+                    V oldValue = entry.getValue();
+                    entry.setValue(value);
                     return oldValue;
                 }
             }
@@ -146,7 +146,7 @@ public class DarvinHashMap<K, V> implements Map<K, V> {
             Iterator<Entry<K, V>> iterator = bucket.iterator();
             while (iterator.hasNext()) {
                 Entry<K, V> entry = iterator.next();
-                if (entry.key.equals(key)) {
+                if (entry.getKey().equals(key)) {
                     iterator.remove();
                     globalWriteLock.lock();
                     try {
@@ -154,7 +154,7 @@ public class DarvinHashMap<K, V> implements Map<K, V> {
                     } finally {
                         globalWriteLock.unlock();
                     }
-                    return entry.value;
+                    return entry.getValue();
                 }
             }
             return null;
@@ -199,7 +199,7 @@ public class DarvinHashMap<K, V> implements Map<K, V> {
                 readLock.lock();
                 try {
                     for (Entry<K, V> entry : buckets[i]) {
-                        keySet.add(entry.key);
+                        keySet.add(entry.getKey());
                     }
                 } finally {
                     readLock.unlock();
@@ -221,7 +221,7 @@ public class DarvinHashMap<K, V> implements Map<K, V> {
                 readLock.lock();
                 try {
                     for (Entry<K, V> entry : buckets[i]) {
-                        values.add(entry.value);
+                        values.add(entry.getValue());
                     }
                 } finally {
                     readLock.unlock();
@@ -242,7 +242,9 @@ public class DarvinHashMap<K, V> implements Map<K, V> {
                 Lock readLock = locks[i].readLock();
                 readLock.lock();
                 try {
-                    entrySet.addAll(buckets[i]);
+                    for (Entry<K, V> entry : buckets[i]) {
+                        entrySet.add(entry);
+                    }
                 } finally {
                     readLock.unlock();
                 }
@@ -268,7 +270,7 @@ public class DarvinHashMap<K, V> implements Map<K, V> {
                 readLock.lock();
                 try {
                     for (Entry<K, V> entry : buckets[i]) {
-                        action.accept(entry.key, entry.value);
+                        action.accept(entry.getKey(), entry.getValue());
                     }
                 } finally {
                     readLock.unlock();
@@ -288,7 +290,7 @@ public class DarvinHashMap<K, V> implements Map<K, V> {
                 writeLock.lock();
                 try {
                     for (Entry<K, V> entry : buckets[i]) {
-                        entry.value = function.apply(entry.key, entry.value);
+                        entry.setValue(function.apply(entry.getKey(), entry.getValue()));
                     }
                 } finally {
                     writeLock.unlock();
@@ -326,7 +328,7 @@ public class DarvinHashMap<K, V> implements Map<K, V> {
             Iterator<Entry<K, V>> iterator = bucket.iterator();
             while (iterator.hasNext()){
                 Entry<K, V> entry = iterator.next();
-                if (entry.key.equals(key) && entry.value.equals(value)) {
+                if (entry.getKey().equals(key) && entry.getValue().equals(value)) {
                     iterator.remove();
                     globalWriteLock.lock();
                     try {
@@ -351,8 +353,8 @@ public class DarvinHashMap<K, V> implements Map<K, V> {
         try {
             LinkedList<Entry<K, V>> bucket = buckets[bucketIndex];
             for (Entry<K, V> entry : bucket) {
-                if (entry.key.equals(key) && entry.value.equals(oldValue)) {
-                    entry.value = newValue;
+                if (entry.getKey().equals(key) && entry.getValue().equals(oldValue)) {
+                    entry.setValue(newValue);
                     return true;
                 }
             }
@@ -370,9 +372,9 @@ public class DarvinHashMap<K, V> implements Map<K, V> {
         try {
             LinkedList<Entry<K, V>> bucket = buckets[bucketIndex];
             for (Entry<K, V> entry : bucket) {
-                if (entry.key.equals(key)) {
-                    V oldValue = entry.value;
-                    entry.value = value;
+                if (entry.getKey().equals(key)) {
+                    V oldValue = entry.getValue();
+                    entry.setValue(value);
                     return oldValue;
                 }
             }
@@ -388,23 +390,12 @@ public class DarvinHashMap<K, V> implements Map<K, V> {
         Lock writeLock = locks[bucketIndex].writeLock();
         writeLock.lock();
         try {
-            LinkedList<Entry<K, V>> bucket = buckets[bucketIndex];
-            for (Entry<K, V> entry : bucket) {
-                if (entry.key.equals(key)) {
-                    return entry.value;
-                }
+            V value = get(key);
+            if (value == null) {
+                value = mappingFunction.apply(key);
+                put(key, value);
             }
-            V newValue = mappingFunction.apply(key);
-            if (newValue != null) {
-                bucket.add(new Entry<>(key, newValue));
-                globalWriteLock.lock();
-                try {
-                    size++;
-                } finally {
-                    globalWriteLock.unlock();
-                }
-            }
-            return newValue;
+            return value;
         } finally {
             writeLock.unlock();
         }
@@ -416,24 +407,15 @@ public class DarvinHashMap<K, V> implements Map<K, V> {
         Lock writeLock = locks[bucketIndex].writeLock();
         writeLock.lock();
         try {
-            LinkedList<Entry<K, V>> bucket = buckets[bucketIndex];
-            Iterator<Entry<K, V>> iterator = bucket.iterator();
-            while (iterator.hasNext()) {
-                Entry<K, V> entry = iterator.next();
-                if (entry.key.equals(key)) {
-                    V newValue = remappingFunction.apply(key, entry.value);
-                    if (newValue == null) {
-                        iterator.remove();
-                        globalWriteLock.lock();
-                        try {
-                            size--;
-                        } finally {
-                            globalWriteLock.unlock();
-                        }
-                    } else {
-                        entry.value = newValue;
-                    }
+            V value = get(key);
+            if (value != null) {
+                V newValue = remappingFunction.apply(key, value);
+                if (newValue != null) {
+                    put(key, newValue);
                     return newValue;
+                } else {
+                    remove(key);
+                    return null;
                 }
             }
             return null;
@@ -448,37 +430,15 @@ public class DarvinHashMap<K, V> implements Map<K, V> {
         Lock writeLock = locks[bucketIndex].writeLock();
         writeLock.lock();
         try {
-            LinkedList<Entry<K, V>> bucket = buckets[bucketIndex];
-            Iterator<Entry<K, V>> iterator = bucket.iterator();
-            while (iterator.hasNext()) {
-                Entry<K, V> entry = iterator.next();
-                if (entry.key.equals(key)) {
-                    V newValue = remappingFunction.apply(key, entry.value);
-                    if (newValue == null) {
-                        iterator.remove();
-                        globalWriteLock.lock();
-                        try {
-                            size--;
-                        } finally {
-                            globalWriteLock.unlock();
-                        }
-                    } else {
-                        entry.value = newValue;
-                    }
-                    return newValue;
-                }
+            V oldValue = get(key);
+            V newValue = remappingFunction.apply(key, oldValue);
+            if (newValue == null) {
+                remove(key);
+                return null;
+            } else {
+                put(key, newValue);
+                return newValue;
             }
-            V newValue = remappingFunction.apply(key, null);
-            if (newValue != null) {
-                bucket.add(new Entry<>(key, newValue));
-                globalWriteLock.lock();
-                try {
-                    size++;
-                } finally {
-                    globalWriteLock.unlock();
-                }
-            }
-            return newValue;
         } finally {
             writeLock.unlock();
         }
@@ -490,70 +450,25 @@ public class DarvinHashMap<K, V> implements Map<K, V> {
         Lock writeLock = locks[bucketIndex].writeLock();
         writeLock.lock();
         try {
-            LinkedList<Entry<K, V>> bucket = buckets[bucketIndex];
-            Iterator<Entry<K, V>> iterator = bucket.iterator();
-            while (iterator.hasNext()) {
-                Entry<K, V> entry = iterator.next();
-                if (entry.key.equals(key)) {
-                    V newValue = remappingFunction.apply(entry.value, value);
-                    if (newValue == null) {
-                        iterator.remove();
-                        globalWriteLock.lock();
-                        try {
-                            size--;
-                        } finally {
-                            globalWriteLock.unlock();
-                        }
-                    } else {
-                        entry.value = newValue;
-                    }
-                    return newValue;
-                }
+            V oldValue = get(key);
+            V newValue = (oldValue == null) ? value : remappingFunction.apply(oldValue, value);
+            if (newValue == null) {
+                remove(key);
+                return null;
+            } else {
+                put(key, newValue);
+                return newValue;
             }
-            bucket.add(new Entry<>(key, value));
-            globalWriteLock.lock();
-            try {
-                size++;
-            } finally {
-                globalWriteLock.unlock();
-            }
-            return value;
         } finally {
             writeLock.unlock();
         }
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        DarvinHashMap<?, ?> that = (DarvinHashMap<?, ?>) o;
-        if (size != that.size) return false;
-        return entrySet().equals(that.entrySet());
-    }
-
-    @Override
-    public int hashCode() {
-        int result = size;
-        for (int i = 0; i < INITIAL_CAPACITY; i++) {
-            Lock readLock = locks[i].readLock();
-            readLock.lock();
-            try {
-                for (Entry<K, V> entry : buckets[i]) {
-                    result = 31 * result + entry.hashCode();
-                }
-            } finally {
-                readLock.unlock();
-            }
-        }
-        return result;
-    }
-
-    public static class Entry<K, V> implements Map.Entry<K, V> {
+    private static class Entry<K, V> implements Map.Entry<K, V> {
         private final K key;
         private V value;
 
-        Entry(K key, V value) {
+        public Entry(K key, V value) {
             this.key = key;
             this.value = value;
         }
